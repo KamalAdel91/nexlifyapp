@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "beta": 1,
+ "creation": "2026-04-28 13:23:42.293422",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tasks_tab",
+  "estimation_details_section",
+  "naming_series",
+  "customer",
+  "amended_from",
+  "column_break_ms6y",
+  "company",
+  "est_opportunity",
+  "column_break_nw7s",
+  "estimation_date",
+  "estimation_opportunity_date",
+  "section_break_oidy",
+  "opportunity_rfq_html",
+  "section_break_ybie",
+  "estimation",
+  "update_tasks_btn",
+  "section_break_cwkl",
+  "project_estimation_tasks_manpower",
+  "update_manpower_btn",
+  "section_break_inzs",
+  "estimation_factor",
+  "manpower_salary",
+  "section_break_btqc",
+  "estimation_display_html",
+  "details_tab"
+ ],
+ "fields": [
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Project Estimation",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "estimation_details_section",
+   "fieldtype": "Section Break",
+   "label": "Estimation Details"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ms6y",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Series",
+   "options": "EST-.YYYY.-.#####.-asd\nEST-.YYYY.-.#####.-asm\nEST-.YYYY.-.#####.-asw",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_nw7s",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "estimation_date",
+   "fieldtype": "Date",
+   "label": "Estimation Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "not_nullable": 1,
+   "options": "Customer",
+   "read_only": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "tasks_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tasks"
+  },
+  {
+   "allow_bulk_edit": 1,
+   "fieldname": "estimation",
+   "fieldtype": "Table",
+   "label": "Estimation Tasks",
+   "options": "Project Estimation Tasks"
+  },
+  {
+   "fieldname": "project_estimation_tasks_manpower",
+   "fieldtype": "Table",
+   "label": "Manpower Estimation",
+   "options": "Project Estimation Tasks Manpower"
+  },
+  {
+   "fieldname": "est_opportunity",
+   "fieldtype": "Link",
+   "label": "Opportunity",
+   "options": "Opportunity"
+  },
+  {
+   "fieldname": "estimation_display_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "section_break_btqc",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "opportunity_rfq_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "section_break_ybie",
+   "fieldtype": "Section Break"
+  },
+  {
+   "button_color": "Primary",
+   "fieldname": "update_tasks_btn",
+   "fieldtype": "Button",
+   "label": "Save"
+  },
+  {
+   "fieldname": "section_break_cwkl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "button_color": "Primary",
+   "fieldname": "update_manpower_btn",
+   "fieldtype": "Button",
+   "label": "Save"
+  },
+  {
+   "fieldname": "manpower_salary",
+   "fieldtype": "Table",
+   "label": "Manpower Salary",
+   "options": "Estimation Manpower Cost"
+  },
+  {
+   "fieldname": "estimation_factor",
+   "fieldtype": "Float",
+   "label": "Factor"
+  },
+  {
+   "fieldname": "section_break_oidy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "est_opportunity.transaction_date",
+   "fieldname": "estimation_opportunity_date",
+   "fieldtype": "Date",
+   "label": "Opportunity Date"
+  },
+  {
+   "fieldname": "section_break_inzs",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Opportunity",
+   "link_fieldname": "custom_estimate"
+  }
+ ],
+ "modified": "2026-05-16 08:44:03.278426",
+ "modified_by": "kamal.adel@alsadara.com",
+ "module": "Estimation",
+ "name": "Project Estimation",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "protect_attached_files": 1,
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

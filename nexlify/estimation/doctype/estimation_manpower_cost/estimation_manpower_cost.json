@@ -1,0 +1,67 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-05-16 00:20:07.765542",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "estimation_manpowercost_designation",
+  "estimation_manpowercost_quantity",
+  "estimation_manpowercost_salary",
+  "estimation_manpowercost_factor",
+  "estimation_manpowercost_completesalary",
+  "estimation_manpowercost_salaryperday"
+ ],
+ "fields": [
+  {
+   "fieldname": "estimation_manpowercost_designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation"
+  },
+  {
+   "fieldname": "estimation_manpowercost_quantity",
+   "fieldtype": "Int",
+   "label": "QTY"
+  },
+  {
+   "fieldname": "estimation_manpowercost_salary",
+   "fieldtype": "Currency",
+   "label": "Basic Salary"
+  },
+  {
+   "fieldname": "estimation_manpowercost_factor",
+   "fieldtype": "Float",
+   "label": "Factor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "estimation_manpowercost_completesalary",
+   "fieldtype": "Currency",
+   "label": "Complete Salary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "estimation_manpowercost_salaryperday",
+   "fieldtype": "Currency",
+   "label": "Salary Per Day",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-16 00:47:36.519736",
+ "modified_by": "Administrator",
+ "module": "Estimation",
+ "name": "Estimation Manpower Cost",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
