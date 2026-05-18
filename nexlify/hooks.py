@@ -29,14 +29,26 @@ has_permission = {
 fixtures = [
     {
         "dt": "Custom Field",
-        "filters": [
-            ["dt", "in", ["Opportunity"]]
-        ]
+        "filters": [["module", "in", ["Estimation", "Nexlify Tracker"]]]
     },
     {
         "dt": "Property Setter",
-        "filters": [
-            ["doc_type", "in", ["Opportunity"]]
-        ]
+        "filters": [["doc_type", "in", ["Opportunity", "Project Estimation", "Opportunity Client Rfq"]]]
+    },
+    {
+        "dt": "Server Script",
+        "filters": [["module", "in", ["Estimation", "Nexlify Tracker"]]]
+    },
+    {
+        "dt": "Client Script",
+        "filters": [["dt", "in", ["Opportunity", "Project Estimation", "Opportunity Client Rfq"]]]
+    },
+    {
+        "dt": "Print Format",
+        "filters": [["doc_type", "in", ["Opportunity", "Project Estimation", "Opportunity Client Rfq"]]]
+    },
+    {
+        "dt": "Workflow",
+        "filters": [["document_type", "in", ["Opportunity", "Project Estimation", "Opportunity Client Rfq"]]]
     }
 ]
