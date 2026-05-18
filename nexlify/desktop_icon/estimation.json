@@ -5,7 +5,7 @@
  "docstatus": 0,
  "doctype": "Desktop Icon",
  "hidden": 0,
- "icon_image": "/files/Estimation_module.png",
+ "icon_image": "nexlify/estimation/Estimation_module.png",
  "icon_type": "Link",
  "idx": 0,
  "label": "Estimation",
