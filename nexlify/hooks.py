@@ -24,3 +24,19 @@ has_permission = {
     "Project Estimation Tasks Manpower": "nexlify.nexlify_api.bypass_child_permission",
     "custom_rfq_table": "nexlify.nexlify_api.bypass_child_permission"
 }
+
+
+fixtures = [
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["dt", "in", ["Opportunity"]]
+        ]
+    },
+    {
+        "dt": "Property Setter",
+        "filters": [
+            ["doc_type", "in", ["Opportunity"]]
+        ]
+    }
+]

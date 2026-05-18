@@ -216,7 +216,7 @@ function refresh_previews(frm) {
 function set_rfq_item_filter(frm) {
     frm.set_query(SCHEMA.est_fields.rfq_link, SCHEMA.est_table, function() {
         return {
-            query: "nexlify.nexlify_api.get_rfq_items_bypass",
+            query: "nexlify.nexlify_tracker_api.get_rfq_items_bypass",
             filters: { 'parent': frm.doc.est_opportunity }
         };
     });
@@ -225,7 +225,7 @@ function set_rfq_item_filter(frm) {
 function set_manpower_task_filter(frm) {
     frm.set_query("estimation_task", "project_estimation_tasks_manpower", function() {
         return {
-            query: "nexlify.nexlify_api.get_estimation_tasks_bypass",
+            query: "nexlify.nexlify_tracker_api.get_estimation_tasks_bypass",
             filters: { "parent": frm.doc.name }
         };
     });
