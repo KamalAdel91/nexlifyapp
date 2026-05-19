@@ -1,9 +1,11 @@
-from frappe import _
 import frappe
 import json
 import inspect
 
-
+@frappe.whitelist()
+def bypass_child_permission(*args, **kwargs):
+    # تخطي فحص الصلاحيات القياسي بالسيرفر للجداول الفرعية المعرفة بالـ hooks
+    return True
 
 @frappe.whitelist()
 def get_universal_tracker_config(doctype, docname=None):
@@ -184,13 +186,3 @@ def custom_validate_link(*args, **kwargs):
     sig = inspect.signature(validate_link)
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
     return validate_link(*args, **filtered_kwargs)
-@frappe.whitelist()
-def bypass_child_permission(doc, permlevel, perm, user):
-    from frappe.permissions import has_permission
-    allowed_roles = ["Sales Manager", "System Manager"]
-    user_roles = frappe.get_roles(user)
-    if any(role in allowed_roles for role in user_roles):
-        return True
-    if hasattr(doc, "owner") and doc.owner == user:
-        return True
-    return False
