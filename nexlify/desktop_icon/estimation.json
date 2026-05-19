@@ -5,19 +5,29 @@
  "docstatus": 0,
  "doctype": "Desktop Icon",
  "hidden": 0,
- "icon_image": "nexlify/estimation/Estimation_module.png",
+ "icon_image": "/files/Estimation_module.png",
  "icon_type": "Link",
- "idx": 0,
+ "idx": 1,
  "label": "Estimation",
  "link_to": "Estimation",
  "link_type": "Workspace Sidebar",
- "logo_url": "",
- "modified": "2026-05-08 02:33:48.317782",
+ "logo_url": "  /files/Estimation_module.png",
+ "modified": "2026-05-19 17:34:25.347556",
  "modified_by": "Administrator",
  "name": "Estimation",
  "owner": "Administrator",
  "restrict_removal": 0,
- "roles": [],
+ "roles": [
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
  "sidebar": "",
  "standard": 1
 }
