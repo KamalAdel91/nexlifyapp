@@ -1,3 +1,5 @@
+import frappe
+
 app_name = "nexlify"
 app_title = "Nexlify"
 app_publisher = "Kamal Adel"
@@ -5,15 +7,22 @@ app_description = "Nexlify ERP - Universal Tracker Engine"
 app_email = "Kamal.adel@outlook.com"
 app_license = "mit"
 
-# --- JavaScript Loading ---
-# الملف ده مهم لوظائف التتبع، هنحمله فقط على الصفحات اللي بتحتاجه فعلًا
-# عشان نخلي التطبيق خفيف، حمّلناه هنا على الـ Doctypes المحددة بس.
-doctype_js = {
-    "Opportunity": "public/js/utils/nexlify_tracker.js",
-    "Project Estimation": "public/js/utils/nexlify_tracker.js",
-    "Opportunity Client Rfq": "public/js/utils/nexlify_tracker.js",
-    # أي Doctype تانية هتستخدم التتبع تضيفها هنا
-}
+# --- Dynamic JavaScript Loading based on Workflow ---
+def get_workflow_doctypes():
+    """إرجاع كل أنواع المستندات المرتبطة بـ Workflow نشط"""
+    try:
+        # نجيب كل document_type من جدول Workflow، اللي لسه شغالين
+        doctypes = frappe.get_all("Workflow",
+                                  filters={"is_active": 1},
+                                  pluck="document_type")
+        # نحولهم لديكشنري بالشكل المطلوب لـ doctype_js
+        return {dt: "public/js/utils/nexlify_tracker.js" for dt in doctypes}
+    except Exception:
+        # لو حصل أي خطأ (قاعدة بيانات مش جاهزة وقت التثبيت مثلاً)
+        # نرجع ديكشنري فاضي ومافيش مشكلة
+        return {}
+
+doctype_js = get_workflow_doctypes()
 
 # --- Whitelisted Methods Override ---
 override_whitelisted_methods = {
@@ -22,8 +31,6 @@ override_whitelisted_methods = {
 }
 
 # --- Permissions for Child Tables ---
-# استخدمنا الدالة has_permission عشان نضمن إن الجداول الابنة دي
-# تقدر تنفتح بس من خلال الـ DocType الأب بتاعها وليس منفردة.
 has_permission = {
     "Project Estimation Tasks": "nexlify.nexlify_api.has_permission",
     "estimation": "nexlify.nexlify_api.has_permission",
