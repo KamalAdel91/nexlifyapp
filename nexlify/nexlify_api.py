@@ -156,6 +156,18 @@ def get_estimation_tasks_bypass(doctype, txt, searchfield, start, page_length, f
 
 
 @frappe.whitelist()
+def get_opportunity_rfq_items(opportunity):
+    """إرجاع عناصر RFQ للفرصة بدون جلب المستند بالكامل"""
+    if not frappe.has_permission("Opportunity", opportunity, "read"):
+        return []
+    return frappe.get_all("Opportunity Client RFQ",
+                          filters={"parent": opportunity},
+                          fields=["opportunity_rfq_item", "opportunity_rfq_description",
+                                  "opportunity_rfq_uom", "opportunity_rfq_quantity"],
+                          order_by="idx asc")
+
+
+@frappe.whitelist()
 def custom_search_link(*args, **kwargs):
     """توسيع البحث ليشمل الجداول الفرعية بشكل آمن"""
     from frappe.desk.search import search_link as original_search
