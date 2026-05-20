@@ -2,19 +2,18 @@
 * ============================================================
 * PROJECT ESTIMATION MASTER CONTROLLER
 * Client: Nexlify ERP
-* Version: 10.5 (Strict Persistent Grid Renderer Edition)
+* Version: 10.6 (Optimized & Clean)
 * ============================================================
 */
 
-// --- SECTION 1: SCHEMA CONFIGURATION ---
+// --- CONFIGURATION ---
 const SCHEMA = {
     estimation_html_field: 'estimation_display_html',
     rfq_dashboard_field: 'opportunity_rfq_html',
     opportunity_link_field: 'est_opportunity',
-    parent_factor_field: 'estimation_factor', 
+    parent_factor_field: 'estimation_factor',
 
-    // Database mapping for Opportunity Child Table
-    opp_table: 'custom_rfq_table', 
+    opp_table: 'custom_rfq_table',
     opp_fields: {
         item: 'opportunity_rfq_item',
         desc: 'opportunity_rfq_description',
@@ -22,8 +21,7 @@ const SCHEMA = {
         qty: 'opportunity_rfq_quantity'
     },
 
-    // Mapping for Estimation Tasks Table
-    est_table: 'estimation', 
+    est_table: 'estimation',
     est_fields: {
         rfq_link: 'rfq_item',
         task: 'task',
@@ -31,7 +29,6 @@ const SCHEMA = {
         hours: 'hours'
     },
 
-    // Mapping for Manpower Cost Table Fields
     manpower_fields: {
         designation: 'estimation_manpowercost_designation',
         qty: 'estimation_manpowercost_quantity',
@@ -42,24 +39,28 @@ const SCHEMA = {
     }
 };
 
-// --- SECTION 2: PARENT FORM EVENTS ---
+// --- TIMEOUT FOR DEBOUNCING PREVIEW RENDERING ---
+let _estimation_preview_timeout = null;
+let _cached_hourly_rate = 0; // تخزين سعر الساعة لتجنب إعادة الحساب
 
+// --- PARENT FORM EVENTS ---
 frappe.ui.form.on('Project Estimation', {
     onload: function(frm) {
-        if (frm.doc.est_opportunity) {
-            frappe.model.clear_doc('Opportunity', frm.doc.est_opportunity);
-        }
+        clear_old_data(frm);
         initialize_logic(frm);
-        setup_dynamic_manpower_triggers(frm);
+        setup_manpower_add_trigger(frm);
     },
     
     refresh: function(frm) {
         initialize_logic(frm);
-        setup_dynamic_manpower_triggers(frm);
+        setup_manpower_add_trigger(frm);
+        // تحديث التخزين المؤقت لسعر الساعة
+        _cached_hourly_rate = calculate_hourly_rate(frm);
     },
 
     estimation_factor: function(frm) {
-        let manpower_field = frm.meta.fields.find(f => f.fieldtype === 'Table' && f.options === 'Estimation Manpower Cost');
+        // تحديث كل صفوف القوى العاملة بعامل التقدير الجديد
+        let manpower_field = get_manpower_field(frm);
         if (manpower_field && frm.doc[manpower_field.fieldname]) {
             frm.doc[manpower_field.fieldname].forEach(row => {
                 frappe.model.set_value(row.doctype, row.name, SCHEMA.manpower_fields.factor, frm.doc.estimation_factor);
@@ -68,59 +69,53 @@ frappe.ui.form.on('Project Estimation', {
     },
 
     est_opportunity: function(frm) {
-        if (frm.doc.est_opportunity) {
-            frappe.model.clear_doc('Opportunity', frm.doc.est_opportunity);
-        }
+        clear_old_data(frm);
         initialize_logic(frm);
     },
 
     update_tasks_btn: function(frm) {
         frm.save().then(() => {
-            refresh_previews(frm);
+            refresh_all_previews(frm);
             frm.refresh_field(SCHEMA.est_table);
-            
-            frappe.show_alert({
-                message: __('Document saved and tasks updated successfully'),
-                indicator: 'green'
-            });
+            frappe.show_alert({ message: __('Document saved and tasks updated'), indicator: 'green' });
         });
     },
 
     update_manpower_btn: function(frm) {
         frm.save().then(() => {
-            refresh_previews(frm);
+            _cached_hourly_rate = calculate_hourly_rate(frm); // نعيد الحساب بعد التغيير
+            refresh_all_previews(frm);
             frm.refresh_field(SCHEMA.est_table);
             if (frm.doc.project_estimation_tasks_manpower) {
                 frm.refresh_field('project_estimation_tasks_manpower');
             }
-            frappe.show_alert({
-                message: __('Document saved successfully'),
-                indicator: 'blue'
-            });
+            frappe.show_alert({ message: __('Document saved and rates updated'), indicator: 'blue' });
         });
     }
 });
 
-// --- SECTION 3: CHILD TABLE LOGIC (Estimation Manpower Cost) ---
-
+// --- MANPOWER CHILD TABLE EVENTS ---
 frappe.ui.form.on('Estimation Manpower Cost', {
     estimation_manpowercost_quantity: function(frm, cdt, cdn) { calculate_manpower_row(frm, cdt, cdn); },
     estimation_manpowercost_salary: function(frm, cdt, cdn) { calculate_manpower_row(frm, cdt, cdn); },
     estimation_manpowercost_factor: function(frm, cdt, cdn) { calculate_manpower_row(frm, cdt, cdn); },
+
+    form_render: function(frm, cdt, cdn) {
+        // ضبط العامل الافتراضي عند فتح صف جديد
+        let row = frappe.get_doc(cdt, cdn);
+        if (!row.estimation_manpowercost_factor && frm.doc.estimation_factor) {
+            frappe.model.set_value(cdt, cdn, SCHEMA.manpower_fields.factor, frm.doc.estimation_factor);
+        }
+    },
     
     estimation_manpower_cost_remove: function(frm) {
-        render_pro_estimation_preview(frm);
+        _cached_hourly_rate = calculate_hourly_rate(frm);
+        schedule_preview_refresh(frm);
     }
 });
 
-function setup_dynamic_manpower_triggers(frm) {
-    let manpower_field = frm.meta.fields.find(f => f.fieldtype === 'Table' && f.options === 'Estimation Manpower Cost');
-    if (manpower_field) {
-        let fieldname = manpower_field.fieldname;
-        frm.script_manager.set_trigger(fieldname + '_add', function(frm, cdt, cdn) {
-            frappe.model.set_value(cdt, cdn, SCHEMA.manpower_fields.factor, frm.doc.estimation_factor || 1);
-        }, 'Project Estimation');
-    }
+function setup_manpower_add_trigger(frm) {
+    // لا حاجة لاستخدام script_manager القديم، الحدث form_render أعلاه يغطي الإضافة
 }
 
 function calculate_manpower_row(frm, cdt, cdn) {
@@ -136,81 +131,77 @@ function calculate_manpower_row(frm, cdt, cdn) {
 
     frappe.model.set_value(cdt, cdn, F.complete, complete);
     frappe.model.set_value(cdt, cdn, F.per_day, per_day);
-    
-    render_pro_estimation_preview(frm);
+
+    _cached_hourly_rate = calculate_hourly_rate(frm);
+    schedule_preview_refresh(frm);
 }
 
-// --- SECTION 4: TASK TABLE EVENT LISTENERS ---
-
+// --- TASKS TABLE EVENTS (debounced) ---
 frappe.ui.form.on('Project Estimation Tasks', {
-    qty: function(frm) { render_pro_estimation_preview(frm); },
-    hours: function(frm) { render_pro_estimation_preview(frm); },
-    project_estimation_tasks_add: function(frm) { render_pro_estimation_preview(frm); },
-    project_estimation_tasks_remove: function(frm) { render_pro_estimation_preview(frm); }
+    qty: function(frm) { schedule_preview_refresh(frm); },
+    hours: function(frm) { schedule_preview_refresh(frm); },
+    project_estimation_tasks_add: function(frm) { schedule_preview_refresh(frm); },
+    project_estimation_tasks_remove: function(frm) { schedule_preview_refresh(frm); }
 });
 
-// --- SECTION 5: UTILITIES & RENDERING ---
+// --- UTILITIES ---
+
+function clear_old_data(frm) {
+    if (frm.doc.est_opportunity) {
+        frappe.model.clear_doc('Opportunity', frm.doc.est_opportunity);
+    }
+}
 
 function initialize_logic(frm) {
-    // اعتراض دالة العرض الأساسية لفرابيه لضمان استقرار الاسم التوضيحي النظيف للتاسك دائماً حتى بعد الريفرش
-    if (!frappe.format_patched_estimation) {
-        frappe.format_patched_estimation = true;
-        const original_format = frappe.format;
-        frappe.format = function(value, df, options, doc) {
-            if (df && df.fieldname === "estimation_task") {
-                if (value && cur_frm && cur_frm.doc && cur_frm.doc.estimation) {
-                    let target_row = cur_frm.doc.estimation.find(r => r.name === value);
-                    if (target_row && target_row.task) {
-                        return target_row.task;
-                    }
-                }
-            }
-            return original_format(value, df, options, doc);
-        };
-    }
-
-    if (frappe.meta && frappe.meta.get_docfield) {
-        let df = frappe.meta.get_docfield("Project Estimation Tasks", SCHEMA.est_fields.rfq_link);
-        if (df) {
-            df.ignore_link_validation = 1;
-        }
-        let df_manpower = frappe.meta.get_docfield("Project Estimation Tasks Manpower", "estimation_task");
-        if (df_manpower) {
-            df_manpower.ignore_link_validation = 1;
-        }
-    }
+    // 1. إزالة أي تعديل عالمي قديم (لم نعد نستخدمه)
     
-    if (frm.fields_dict[SCHEMA.est_table] && frm.fields_dict[SCHEMA.est_table].grid) {
-        frm.fields_dict[SCHEMA.est_table].grid.docfields.forEach(df => {
+    // 2. إلغاء التحقق من الروابط في الجداول الفرعية
+    set_ignore_link_validation(frm);
+
+    // 3. الفلاتر المخصصة
+    set_rfq_item_filter(frm);
+    set_manpower_task_filter(frm);
+
+    // 4. جلب المعاينات
+    _cached_hourly_rate = calculate_hourly_rate(frm);
+    refresh_all_previews(frm);
+}
+
+function set_ignore_link_validation(frm) {
+    // جدول المهام
+    let est_grid = frm.fields_dict[SCHEMA.est_table]?.grid;
+    if (est_grid) {
+        est_grid.docfields.forEach(df => {
             if (df.fieldname === SCHEMA.est_fields.rfq_link) {
                 df.ignore_link_validation = 1;
-            }
-        });
-    }
-
-    if (frm.fields_dict["project_estimation_tasks_manpower"] && frm.fields_dict["project_estimation_tasks_manpower"].grid) {
-        frm.fields_dict["project_estimation_tasks_manpower"].grid.docfields.forEach(df => {
-            if (df.fieldname === "estimation_task") {
-                df.ignore_link_validation = 1;
-                
+                // استخدام formatter لعرض اسم الـ RFQ Item بدلاً من الرقم المرجعي
                 df.formatter = function(value, row, column, classes) {
                     if (!value) return "";
-                    let target_estimation = (frm && frm.doc ? frm.doc.estimation : []);
-                    let target_row = target_estimation.find(r => r.name === value);
-                    return target_row && target_row.task ? target_row.task : value;
+                    let rfq_item = value;
+                    // تنظيف معرف الفرصة من النهاية إذا كان موجودًا
+                    if (frm.doc.est_opportunity && rfq_item.endsWith('-' + frm.doc.est_opportunity)) {
+                        rfq_item = rfq_item.replace('-' + frm.doc.est_opportunity, '');
+                    }
+                    return rfq_item;
                 };
             }
         });
     }
 
-    set_rfq_item_filter(frm);
-    set_manpower_task_filter(frm);
-    refresh_previews(frm);
-}
-
-function refresh_previews(frm) {
-    render_pro_estimation_preview(frm);
-    render_opportunity_rfq_preview(frm);
+    // جدول القوى العاملة
+    let manpower_grid = frm.fields_dict["project_estimation_tasks_manpower"]?.grid;
+    if (manpower_grid) {
+        manpower_grid.docfields.forEach(df => {
+            if (df.fieldname === "estimation_task") {
+                df.ignore_link_validation = 1;
+                df.formatter = function(value, row, column, classes) {
+                    if (!value) return "";
+                    let target = frm.doc.estimation?.find(r => r.name === value);
+                    return target ? target.task : value;
+                };
+            }
+        });
+    }
 }
 
 function set_rfq_item_filter(frm) {
@@ -231,25 +222,53 @@ function set_manpower_task_filter(frm) {
     });
 }
 
-// --- SECTION 6: RESPONSIVE DASHBOARDS ---
+function get_manpower_field(frm) {
+    return frm.meta.fields.find(f => f.fieldtype === 'Table' && f.options === 'Estimation Manpower Cost');
+}
+
+function calculate_hourly_rate(frm) {
+    let total_salary_per_day = 0;
+    let manpower_field = get_manpower_field(frm);
+    if (manpower_field && frm.doc[manpower_field.fieldname]) {
+        frm.doc[manpower_field.fieldname].forEach(row => {
+            total_salary_per_day += flt(row[SCHEMA.manpower_fields.per_day]);
+        });
+    }
+    return total_salary_per_day / 8;
+}
+
+// Debounce لتجنب إعادة الرسم المتكررة
+function schedule_preview_refresh(frm) {
+    if (_estimation_preview_timeout) clearTimeout(_estimation_preview_timeout);
+    _estimation_preview_timeout = setTimeout(() => {
+        refresh_all_previews(frm);
+    }, 200);
+}
+
+function refresh_all_previews(frm) {
+    render_pro_estimation_preview(frm);
+    render_opportunity_rfq_preview(frm);
+}
+
+// --- RESPONSIVE DASHBOARDS (خفيفة) ---
 
 function render_opportunity_rfq_preview(frm) {
     let opp_id = frm.doc.est_opportunity;
     if (!opp_id) return;
 
+    // جلب RFQ Items فقط بدون تحميل المستند بالكامل
     frappe.call({
-        method: 'frappe.client.get',
-        args: { doctype: 'Opportunity', name: opp_id },
+        method: 'nexlify.nexlify_api.get_opportunity_rfq_items',
+        args: { opportunity: opp_id },
         callback: function(r) {
             if (r.message) {
-                let doc = r.message;
-                let rfq_items = doc[SCHEMA.opp_table] || [];
+                let rfq_items = r.message;
                 const F = SCHEMA.opp_fields;
                 
                 let html = `
                     <div style="background-color: transparent; border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
                         <div style="display: flex; align-items: center; margin-bottom: 15px; border-left: 4px solid var(--blue-500); padding-left: 15px;">
-                            <h5 style="margin: 0; color: var(--text-color) !important; font-weight: 700;">Client RFQ</h5>
+                            <h5 style="margin: 0; color: var(--text-color); font-weight: 700;">Client RFQ</h5>
                         </div>
                         <div style="overflow-x: auto; width: 100%;">
                             <table style="width: 100%; min-width: 650px; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -262,9 +281,8 @@ function render_opportunity_rfq_preview(frm) {
                                         <th style="padding: 12px; text-align: center; width: 120px;">Qty</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                `;
-
+                                <tbody>`;
+                                
                 rfq_items.forEach((item, index) => {
                     html += `
                         <tr>
@@ -290,22 +308,12 @@ function render_pro_estimation_preview(frm) {
     const F = SCHEMA.est_fields;
     let grand_hours = 0;
     let grand_cost = 0;
-
-    let total_salary_per_day = 0;
-    let manpower_field = frm.meta.fields.find(f => f.fieldtype === 'Table' && f.options === 'Estimation Manpower Cost');
-    
-    if (manpower_field && frm.doc[manpower_field.fieldname]) {
-        frm.doc[manpower_field.fieldname].forEach(row => {
-            total_salary_per_day += flt(row[SCHEMA.manpower_fields.per_day]);
-        });
-    }
-    
-    let hourly_rate = total_salary_per_day / 8;
+    let hourly_rate = _cached_hourly_rate || calculate_hourly_rate(frm);
 
     let html = `
         <div style="background-color: transparent; border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
             <div style="display: flex; align-items: center; margin-bottom: 15px; border-left: 4px solid var(--blue-500); padding-left: 15px;">
-                <h5 style="margin: 0; color: var(--text-color) !important; font-weight: 700;">Estimation Calculation</h5>
+                <h5 style="margin: 0; color: var(--text-color); font-weight: 700;">Estimation Calculation</h5>
             </div>
             <div style="overflow-x: auto; width: 100%;">
                 <table style="width: 100%; min-width: 750px; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -320,19 +328,17 @@ function render_pro_estimation_preview(frm) {
                             <th style="padding: 12px; text-align: right; background-color: var(--bg-light-gray); width: 130px;">Total Cost</th>
                         </tr>
                     </thead>
-                    <tbody>
-    `;
+                    <tbody>`;
 
     tasks.forEach((row, index) => {
         let row_total_hours = flt(row[F.qty]) * flt(row[F.hours]);
         let row_total_cost = row_total_hours * hourly_rate;
-        
         grand_hours += row_total_hours;
         grand_cost += row_total_cost;
-        
-        // تنظيف القيمة المجمعة ديناميكياً لعرض اسم الـ Item فقط دون معرف الـ Opportunity التابع له
+
+        // عرض اسم الـ RFQ Item بدون معرف الفرصة (الآن يتم بالـ formatter، لكن نحتاجه هنا للجدول HTML)
         let display_rfq_item = row[F.rfq_link] || '-';
-        if (frm.doc.est_opportunity && display_rfq_item.endsWith(frm.doc.est_opportunity)) {
+        if (frm.doc.est_opportunity && display_rfq_item.endsWith('-' + frm.doc.est_opportunity)) {
             display_rfq_item = display_rfq_item.replace('-' + frm.doc.est_opportunity, '');
         }
         
