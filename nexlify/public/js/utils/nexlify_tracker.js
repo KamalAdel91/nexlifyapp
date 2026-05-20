@@ -1,50 +1,72 @@
+// nexlify_tracker.js - Universal Tracker Sidebar
+// (c) Nexlify - Performance-optimized version
+
+let _nexlify_tracker_timeout = null;
+
 frappe.ui.form.on('*', {
-    refresh: function(frm) {
+    refresh: function (frm) {
+        // لا نرسم التراكر إلا إذا كان المستند محفوظًا
         if (!frm.is_new()) {
             draw_nexlify_sidebar_tracker(frm);
         }
     },
-    workflow_state: function(frm) {
+    workflow_state: function (frm) {
         draw_nexlify_sidebar_tracker(frm);
     }
 });
 
 function draw_nexlify_sidebar_tracker(frm) {
+    // تجنب المكالمات المتكررة – debounce 300ms
+    if (_nexlify_tracker_timeout) clearTimeout(_nexlify_tracker_timeout);
+    _nexlify_tracker_timeout = setTimeout(() => {
+        _draw_tracker_now(frm);
+    }, 300);
+}
+
+function _draw_tracker_now(frm) {
     frappe.call({
         method: "nexlify.nexlify_api.get_universal_tracker_config",
         args: {
             doctype: frm.doctype,
             docname: frm.doc.name
         },
-        callback: function(r) {
-            if (r.message && !r.message.error) {
-                const config = r.message;
-                const currentState = frm.doc[config.workflow_field];
+        callback: function (r) {
+            // نتجاهل الأخطاء (مفيش Workflow نشط) ولا نرسم حاجة
+            if (!r.message || r.message.error) {
+                $('#nexlify-smart-tracker').remove();
+                return;
+            }
 
-                render_sidebar_tracker_html(frm, config.stages, currentState, config.history || [], config.tasks || []);
+            const config = r.message;
+            const currentState = frm.doc[config.workflow_field];
 
-                const tasks = config.tasks || [];
-                tasks.forEach(function(t) {
-                    if (t.field_name && frm.fields_dict[t.field_name]) {
-                        $(frm.fields_dict[t.field_name].input).off('change').on('change', function() {
-                            render_sidebar_tracker_html(frm, config.stages, currentState, config.history || [], tasks);
-                        });
-                    }
-                });
+            // رسم أولي
+            render_sidebar_tracker_html(frm, config.stages, currentState, config.history || [], config.tasks || []);
+
+            // بدل ربط change على كل حقل يدويًا، نستخدم نظام Frappe لمراقبة النموذج
+            // أولاً نزيل أي مستمع قديم بنفس الاسم
+            frm.off('change', _nexlify_field_change_handler);
+            // ثم نضيف مستمع واحد لأي تغيير في المستند
+            frm.on('change', _nexlify_field_change_handler);
+
+            function _nexlify_field_change_handler() {
+                // نعيد رسم التراكر عند أي تغيير (بـ debounce)
+                draw_nexlify_sidebar_tracker(frm);
             }
         }
     });
 }
 
 function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) {
-    $('#nexlify-smart-tracker, #nexlify-sidebar-tracker').remove();
+    // إزالة التراكر القديم
+    $('#nexlify-smart-tracker').remove();
 
     const display_stages = stages.slice(0, -1);
     const current_index = stages.findIndex(s => s.state === currentState);
     const is_dark = $('html').attr('data-theme') === 'dark';
     const is_submitted = frm.doc.docstatus === 1;
-    const is_mobile = $(window).width() <= 767; 
-    
+    const is_mobile = $(window).width() <= 767;
+
     const tracker_id = 'nexlify-smart-tracker';
     const main_body_id = 'nexlify-main-body';
     const main_arrow_id = 'nexlify-main-arrow';
@@ -86,7 +108,7 @@ function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) 
         const history_record = history.filter(h => h.workflow_state === stage.state).pop();
         const is_completed = i < current_index || (is_last_visible && (is_submitted || !!history_record));
         const is_current = i === current_index;
-        
+
         let color = is_completed ? '#28a745' : (is_current ? '#1a73e8' : (is_dark ? '#334155' : '#cbd5e1'));
         let line_color = i < current_index ? '#28a745' : (is_dark ? '#334155' : '#e2e8f0');
         let icon = is_completed ? '✓' : (i + 1);
@@ -119,7 +141,6 @@ function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) 
 
         const stage_tasks = tasks.filter(t => t.stage === stage.state);
         let tasks_html = stage_tasks.map(t => {
-            
             let is_done = false;
             let field_value = frm.doc[t.field_name];
 
@@ -127,7 +148,6 @@ function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) 
                 let table_ok = field_value && Array.isArray(field_value) && field_value.length > 0;
                 let client_rfq_value = frm.doc["custom_client_rfq"];
                 let client_rfq_ok = client_rfq_value !== undefined && client_rfq_value !== null && client_rfq_value !== '';
-                
                 if (table_ok && client_rfq_ok) {
                     is_done = true;
                 }
@@ -143,10 +163,9 @@ function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) 
 
             let link_markup = '';
             const link_val = t.link_field_name ? frm.doc[t.link_field_name] : null;
-            
+
             if (link_val) {
                 let target_url = '';
-
                 if (t.is_link_type && t.link_options) {
                     target_url = `/app/${frappe.router.slug(t.link_options)}/${link_val}`;
                 } else if (t.is_attach_type) {
@@ -182,14 +201,13 @@ function render_sidebar_tracker_html(frm, stages, currentState, history, tasks) 
                     <div id="${details_id}" class="stage-details" style="${is_current ? 'display: block;' : 'display: none;'}">
                         ${tasks_html} ${history_html}
                     </div>
-                    
                 </div>
             </div>`;
     }).join('');
 
     const header_style = is_mobile ? 'mobile-btn-style' : '';
     const border_bottom_color = `1px solid ${is_dark ? '#1e293b' : '#e2e8f0'}`;
-    
+
     const tracker_html = `
         ${style_tag}
         <div id="${tracker_id}">
